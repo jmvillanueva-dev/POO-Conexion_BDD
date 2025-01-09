@@ -1,42 +1,69 @@
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.*;
 
 public class Login {
-    private JTextField userName;
+    private JTextField userEmail;
     private JPasswordField userPass;
-    private JButton iniciarButton;
+    private JButton loginButton;
     public JPanel login;
 
     public Login() {
-        iniciarButton.addActionListener(new ActionListener() {
+        loginButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String url = "jdbc:mysql://localhost:3306/estudiantes2024b"; // jdbc = java database conector
+                String url = "jdbc:mysql://localhost:3306/universidad";
                 String username = "root";
                 String password = "1234";
 
-                try {
-                    String parametro = userPass.getText();
-                    Connection con = DriverManager.getConnection(url,username,password);
-                    System.out.println("Se ha conectado con la base de datos");
-                    Statement stmt = con.createStatement();
-                    String query = "SELECT * FROM estudiantes where cedula=" + parametro;
+                try (Connection con = DriverManager.getConnection(url, username, password)) {
+                    System.out.println("Conexión con la DB exitosa!");
 
-                    ResultSet rs = stmt.executeQuery(query);
+                    String parametroEmail = userEmail.getText();
+                    String parametroPass = new String(userPass.getPassword());
 
-                    while (rs.next()) {
-                        System.out.println(rs.getString("cedula"));
-                        System.out.println(rs.getString("nombre"));
-                        System.out.println(rs.getString("b1"));
-                        System.out.println(rs.getString("b2"));
+                    String query = "SELECT contrasena FROM usuarios WHERE email = ?";
+                    try (PreparedStatement stmt = con.prepareStatement(query)) {
+                        stmt.setString(1, parametroEmail);
+                        try (ResultSet rs = stmt.executeQuery()) {
+                            if (rs.next()) {
+                                String passwordDB = rs.getString("contrasena");
+
+                                if (passwordDB.equals(parametroPass)) {
+                                    JOptionPane.showMessageDialog(null, "Inicio de sesión exitoso");
+
+                                    String idQuery = "SELECT id_usuario FROM usuarios WHERE email = ?";
+                                    try (PreparedStatement idStmt = con.prepareStatement(idQuery)) {
+                                        idStmt.setString(1, parametroEmail);
+                                        try (ResultSet idRs = idStmt.executeQuery()) {
+                                            if (idRs.next()) {
+                                                int userId = idRs.getInt("id_usuario");
+
+                                                // Mostrar el panel DataUser
+                                                JFrame frame = new JFrame("Datos del Usuario");
+                                                frame.setContentPane(new DataUser(userId).getPanel());
+                                                frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+                                                frame.setSize(800, 600);
+                                                frame.setLocationRelativeTo(null);
+                                                frame.setVisible(true);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    JOptionPane.showMessageDialog(null, "Contraseña incorrecta");
+                                }
+                            } else {
+                                JOptionPane.showMessageDialog(null, "Lo sentimos. Parece que tu email no está registrado.");
+                            }
+                        }
                     }
-                    con.close();
                 } catch (SQLException error) {
-                    throw new RuntimeException(error);
+                    JOptionPane.showMessageDialog(null, "Error de conexión a la base de datos");
                 }
             }
         });
     }
+
 }
